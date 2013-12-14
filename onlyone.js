@@ -5,6 +5,29 @@ const DOWN_ARROW = 40;
 const SPACEBAR = 32;
 
 
+// TODO add level bounds, stop scrolling when you get there
+
+
+// TODO make it possible to act upon Apple using force (suck or blow)
+// I think that means making Apple inherit from both Mob and Powerup... int wrist sting.
+function Apple() {
+}
+Apple.prototype = {
+  type: "apple",
+  classification: "powerup",
+  width: 32,
+  height: 32,
+  draw: function(ctx) {
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(this.left + this.width/2, this.top + this.height/2, this.height/2, 0, 2*Math.PI, false);
+      ctx.fill();
+  }
+};
+Apple.prototype.__proto__ = new Mob();
+ConstructorRegistry.register(Apple);
+
+
 function adjustToScreen() {
     var screenWidth = window.innerWidth;
     var screenHeight = window.innerHeight;
@@ -106,13 +129,64 @@ function startGame(loader) {
                           TheWorld.startX,
 			  TheWorld.startY,
 			  64, 64);
+
+
+    player.usePower = function(elapsed) {
+        //player.jump(elapsed);
+
+        // suck:
+        if (!player.suckForce) {
+            player.suckForce = new ForceField();
+            player.suckForce.boxInit(0, 0, 0, 0);
+            TheWorld.addForceField(player.suckForce);
+        }
+
+        if (player.lastMoved == GOING_LEFT) {
+            // suck force is to my left and sucks right:
+            player.suckForce.boxInit(player.left - 257,
+                                     player.top - 32,
+                                     256,
+                                     128);
+            player.suckForce.setVector(2, 0);
+        } else { // going right, or haven't moved yet -
+            // the suck force is to my right and sucks left
+            player.suckForce.boxInit(player.right + 1,
+                                     player.top - 32,
+                                     256,
+                                     128);
+            player.suckForce.setVector(-2, 0);
+        }
+    };
+
+    player.stopUsingPower = function(elapsed) {
+        //player.stopJumping(elapsed);
+        if (player.suckForce) {
+            TheWorld.removeForceField(player.suckForce);
+        }
+        player.suckForce = null;
+    };
+
+
   TheWorld.addForegroundObject(player);
   //TheWorld.draw(context);
 
+  var field = new ForceField();
+  field.boxInit(-250,
+                247,
+	        200,
+		100);
+  field.setVector(1, 0);
+  TheWorld.addForceField(field);
+
+    var apple = new Mob();
+    apple.boxInit(900, -32, 32, 32);
+    apple.mobInit(loader, "platform/octogoblin.png", false);
+    TheWorld.addForegroundObject(apple);
+
   var leftArrowDown = false;
   var rightArrowDown = false;
-    var upArrowDown = false;
-    var downArrowDown = false;
+  var upArrowDown = false;
+  var downArrowDown = false;
   var spacebarDown = false;
   var gameStarted = false;
 
@@ -173,9 +247,9 @@ function startGame(loader) {
     currentTime = newTime;
 
     if (spacebarDown) {
-      player.jump(elapsed);
+      player.usePower(elapsed);
     } else {
-       player.stopJumping(elapsed);
+      player.stopUsingPower(elapsed);
     }
 
     if (leftArrowDown && !rightArrowDown) {
@@ -230,14 +304,5 @@ $(document).ready(function() {
   var loader = new AssetLoader();
   progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
   progressBar.draw(0);
-  // Playing online or offline?
-  if (typeof offlineLevelData != "undefined") {
-    offlineMode = true;
-    TheWorld.loadFromString(offlineLevelData, loader, startGame);
-  } else {
-    offlineMode = false;
-    var title = gup("level");
-    TheWorld.loadFromServer(title, loader, startGame);
-  }
-
+  TheWorld.loadFromString(offlineLevelData, loader, startGame);
 });
