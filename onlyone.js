@@ -162,23 +162,24 @@ var powers = {
                      player.iceBeam = new IceBlock();
                      player.iceBeam.boxInit(0, 0, 0, 0);
                      TheWorld.addForegroundObject(player.iceBeam);
+                     player.iceBeamDirection = player.lastMoved;
                  }
-               if (player.lastMoved == GOING_LEFT) {
+               if (player.lastMoved == GOING_LEFT && player.iceBeamDirection == GOING_LEFT) {
                    var width = player.iceBeam.width;
                    if (width < 128) {
-                       width += 1;
+                       width += 2;
                    player.iceBeam.boxInit(player.left - width,
-                                          player.bottom,
+                                          player.bottom - 1,
                                           width,
                                           16);
                    }
                }
-               if (player.lastMoved == GOING_RIGHT) {
+               if (player.lastMoved == GOING_RIGHT && player.iceBeamDirection == GOING_RIGHT) {
                    var width = player.iceBeam.width;
                    if (width < 128) {
-                   width += 1;
+                   width += 2;
                    player.iceBeam.boxInit(player.right,
-                                          player.bottom,
+                                          player.bottom - 1,
                                           width,
                                           16);
                    }
@@ -186,8 +187,9 @@ var powers = {
              },
 
              onDeactivate: function(player, elapsed) {
-                 // TODO remove old player ice beam?
+                 // TODO remove old ice beam, or leave it?
                  player.iceBeam = null;
+                 player.iceBeamDirection = null;
              }
             }
 };
