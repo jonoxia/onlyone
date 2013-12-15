@@ -22,6 +22,19 @@ PhysicsConstants.groundAcceleration = 12;
 
 // TODO add level bounds, stop scrolling when you get there
 
+function Billboard() {
+    this.img = loader.add("title_screen.jpg");
+}
+Billboard.prototype = {
+    type: "billboard",
+    draw: function(ctx) {
+        ctx.drawImage(this.img, 0, 0);
+    }
+};
+Billboard.prototype.__proto__ = new Box();
+// TODO should go in background objects, not foreground..?
+
+
 function Apple() {
    this.mobInit(loader, "apple.png", false);
 }
@@ -39,15 +52,14 @@ Apple.prototype = {
             g_level = 0; // if we're out of levels, loop back to beginning
         }
         TheWorld.loadFromString(all_level_data[g_level], loader, function() {
-            
+            doSpecialLevelStuff();
+            g_player.vx = 0;
+            g_player.vy = 0;
             g_player.left = TheWorld.startX;
 	    g_player.top = TheWorld.startY;
             TheWorld.addForegroundObject(g_player);
 
         });
-        // TODO not sure this is clearing everything as it should be. Some weird bugs
-        // seem to happen on higher levels, possibly due to leftover data
-        // Seems like the player object from the older level is still hanging around?
     }
     return false;
   }
@@ -347,6 +359,24 @@ var powers = {
 
 var progressBar;
 
+
+function doSpecialLevelStuff() {
+
+    if (g_level == 0) {
+        var powerObjects = TheWorld.getObjectsOfType("power_object");
+        if (powerObjects.length > 0) {
+            powerObjects[0].name = "JUMP";
+            powerObjects[1].name = "SUCK";
+            powerObjects[2].name = "FREEZE";
+            powerObjects[3].name = "SLICE";
+        }
+
+        var billboard = new Billboard();
+        billboard.boxInit(0, 0, 800, 600);
+        TheWorld.addBackgroundObject(billboard);
+    }
+}
+
 function startGame(loader) {
 
   if (TheWorld.musicUrl != "") {
@@ -402,6 +432,7 @@ function startGame(loader) {
      return {x: 0, y: 0};
   };
 
+  doSpecialLevelStuff();
   TheWorld.addForegroundObject(g_player);
   //TheWorld.draw(context);
 
@@ -412,16 +443,6 @@ function startGame(loader) {
 		100);
   field.setVector(1, 0);
   TheWorld.addForceField(field);*/
-
-
-    // Or do this like only in level 0:
-    var powerObjects = TheWorld.getObjectsOfType("power_object");
-    if (powerObjects.length > 0) {
-        powerObjects[0].name = "JUMP";
-        powerObjects[1].name = "SUCK";
-        powerObjects[2].name = "FREEZE";
-        powerObjects[3].name = "SLICE";
-    }
 
   var startTime = Date.now();
 
@@ -509,9 +530,9 @@ function startGame(loader) {
     StatusBar.draw(context, g_player);
 
     // Show instructions on screen until player starts moving:
-    if (!gameStarted) {
+    /*if (!gameStarted) {
       bannerText(getLocalString("_game_instructions"));
-    }
+    }*/
 
     // check for #LOSING:
     if (g_player.dead) {
