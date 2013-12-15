@@ -264,10 +264,7 @@ var powers = {
                     TheWorld.removeForegroundObject(cut.platform);
 
                     // Put in new block above the cut:
-                    var newBlock1 = new SliceableBlock();
-                    // TODO make this one mobile so it will do some falling
-
-                    // fallingBlock? pushableBlock?
+                    var newBlock1 = new TippyBlock();
                     newBlock1.boxInit(left,
                                       top,
                                       width,
@@ -276,7 +273,7 @@ var powers = {
                     TheWorld.addForegroundObject(newBlock1);
 
                     // Put in new block below the cut:
-                    var newBlock2 = new SliceableBlock();
+                    var newBlock2 = new Platform();
                     newBlock2.boxInit(left,
                                       cut.height,
                                       width,
