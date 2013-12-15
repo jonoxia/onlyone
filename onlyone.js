@@ -38,6 +38,30 @@ Apple.prototype.__proto__ = new Mob(); // Multi-inherit from mob and powerup??
 ConstructorRegistry.register(Apple);
 
 
+function PowerObject() {
+}
+PowerObject.prototype = {
+    type: "power_object",
+    name: "POW",
+    draw: function(ctx) {
+	ctx.strokeStyle = "black";
+        ctx.font="14pt arial";
+	ctx.strokeRect(this.left, this.top, 64, 64);
+        ctx.strokeText(this.name, this.left + 5, this.top +32);
+    },
+
+    onMobTouch: function(mob, intercept) {
+        if (mob.type == "player") {
+            g_selectedPower = powers[this.name];
+        }
+        return false;
+    }
+};
+PowerObject.prototype.__proto__ = new Box();
+ConstructorRegistry.register(PowerObject);
+
+
+
 function adjustToScreen() {
     var screenWidth = window.innerWidth;
     var screenHeight = window.innerHeight;
@@ -56,6 +80,12 @@ function bannerText(text) {
   //var textWidth = ctx.measureText(text);
   ctx.fillText(text, 100, TheWorld.canvasHeight/2 - 50);
 }
+
+// Make a level dominated by one object, which is a ladder painted with the
+// title scren image. The powerups are all here.
+// Your power is "select" and if you press it when touching a powerup
+// then you start level 1 and gain that power.
+
 
 var StatusBar = {
   timeString: "",
@@ -106,13 +136,15 @@ var StatusBar = {
     ctx.fillText(getLocalString("_time") + ": " + this.timeString, 80, 30);
 
     //ctx.fillText(getLocalString("_useless_trinkets") + ": " + player.numTrinkets, 240, 30);
+      if (g_selectedPower) {
       ctx.fillText("SPACEBAR: " + g_selectedPower.name, 240, 30);
+      }
   }
 };
 
 
 var powers = {
-    jump: {"name": "JUMP",
+    JUMP: {"name": "JUMP",
            "sprite": 1,
            onActivate: function(player, elapsed) {
                player.jump(elapsed);
@@ -123,7 +155,7 @@ var powers = {
            }
           },
     
-    suck: {"name": "SUCK",
+    SUCK: {"name": "SUCK",
            "sprite": 2,
            onActivate: function(player, elapsed) {
                // suck:
@@ -158,7 +190,7 @@ var powers = {
            }
           },
 
-    freeze: {"name": "FREEZE",
+    FREEZE: {"name": "FREEZE",
              "sprite": 2,
              onActivate: function(player, elapsed) {
                  if (!player.iceBeam) {
@@ -196,7 +228,7 @@ var powers = {
              }
             },
 
-    slice: {"name": "SLICE",
+    SLICE: {"name": "SLICE",
             "sprite": 2,
             onActivate: function(player, elapsed) {
                 // TODO actually kind of want this to play out its whole animation even if
@@ -292,8 +324,6 @@ var powers = {
            }
 };
 
-g_selectedPower = powers["slice"];
-
 var progressBar;
 
 function startGame(loader) {
@@ -328,7 +358,7 @@ function startGame(loader) {
       // top row = 4 frames moving right
       // second row = facing right: stand, leap, suck
       if (this.lastMoved == GOING_RIGHT) {
-          if (spacebarDown) {
+          if (spacebarDown && g_selectedPower) {
               return {x: g_selectedPower.sprite, y: 1};
           } else if (!this.onGround()) {
               return {x: 1, y: 1};
@@ -338,7 +368,7 @@ function startGame(loader) {
               return {x: 0, y: 1};
           }
       } else {
-          if (spacebarDown) {
+          if (spacebarDown && g_selectedPower) {
               return {x: g_selectedPower.sprite, y: 3};
           } else if (!this.onGround()) {
               return {x: 1, y: 3};
@@ -354,18 +384,24 @@ function startGame(loader) {
   TheWorld.addForegroundObject(player);
   //TheWorld.draw(context);
 
-  var field = new ForceField();
+    /*var field = new ForceField();
   field.boxInit(-250,
                 247,
 	        200,
 		100);
   field.setVector(1, 0);
-  TheWorld.addForceField(field);
+  TheWorld.addForceField(field);*/
 
-    var apple = new Mob();
+   /* var apple = new Mob();
     apple.boxInit(900, -48, 48, 48);
     apple.mobInit(loader, "apple.png", false);
-    TheWorld.addForegroundObject(apple);
+    TheWorld.addForegroundObject(apple);*/
+
+    var powerObjects = TheWorld.getObjectsOfType("power_object");
+    powerObjects[0].name = "JUMP";
+    powerObjects[1].name = "SUCK";
+    powerObjects[2].name = "FREEZE";
+    powerObjects[3].name = "SLICE";
 
   var startTime = Date.now();
 
@@ -424,10 +460,12 @@ function startGame(loader) {
     elapsed = newTime - currentTime;
     currentTime = newTime;
 
-    if (spacebarDown) {
+    if (g_selectedPower ) {
+      if (spacebarDown) {
         g_selectedPower.onActivate(player, elapsed);
-    } else {
+      } else {
         g_selectedPower.onDeactivate(player, elapsed);
+      }
     }
 
     if (leftArrowDown && !rightArrowDown) {
@@ -477,10 +515,9 @@ function startGame(loader) {
 }
 
 
-var offlineMode;
 $(document).ready(function() {
-  var loader = new AssetLoader();
-  progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
-  progressBar.draw(0);
-  TheWorld.loadFromString(offlineLevelData, loader, startGame);
+    var loader = new AssetLoader();
+    progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
+    progressBar.draw(0);
+    TheWorld.loadFromString(level0data, loader, startGame);
 });
