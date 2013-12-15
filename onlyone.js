@@ -99,6 +99,7 @@ var StatusBar = {
   }
 };
 
+
 var progressBar;
 
 function startGame(loader) {
@@ -120,19 +121,38 @@ function startGame(loader) {
       resizeTimer = setTimeout(adjustToScreen, 500);
   });
 
-  var avatarURL = $("#avatarURL").html();
   var context = $("#game-canvas")[0].getContext("2d");
 
   // Create player, put it in the world:
   var player = new Player(loader,
-			  avatarURL,
+			  "elefun.png",
                           TheWorld.startX,
 			  TheWorld.startY,
-			  64, 64);
+			  64, 50);
+
+
+  player.selectSprite = function() {
+      // top row = 4 frames moving right
+      // second row = facing right: stand, leap, suck
+      if (this.lastMoved == GOING_RIGHT) {
+          if (!this.onGround()) {
+              return {x: 1, y: 1};
+          } else {
+              return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 0};
+          }
+      } else {
+          if (!this.onGround()) {
+              return {x: 1, y: 3};
+          } else {
+              return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 2};
+          }
+      }
+     return {x: 0, y: 0};
+  };
 
 
     player.usePower = function(elapsed) {
-        //player.jump(elapsed);
+        player.jump(elapsed);
 
         // suck:
         if (!player.suckForce) {
@@ -159,7 +179,7 @@ function startGame(loader) {
     };
 
     player.stopUsingPower = function(elapsed) {
-        //player.stopJumping(elapsed);
+        player.stopJumping(elapsed);
         if (player.suckForce) {
             TheWorld.removeForceField(player.suckForce);
         }
