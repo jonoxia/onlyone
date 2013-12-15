@@ -12,8 +12,10 @@ const SPACEBAR = 32;
   var spacebarDown = false;
   var gameStarted = false;
 
-
+var loader = new AssetLoader();
+g_player = null;
 g_selectedPower = null;
+g_level = 0;
 
 PhysicsConstants.groundFriction = 6;
 PhysicsConstants.groundAcceleration = 12;
@@ -21,17 +23,33 @@ PhysicsConstants.groundAcceleration = 12;
 // TODO add level bounds, stop scrolling when you get there
 
 function Apple() {
+   this.mobInit(loader, "apple.png", false);
 }
 Apple.prototype = {
   type: "apple",
   classification: "powerup",
-  width: 48,
-  height: 48,
-  draw: function(ctx) {
-      ctx.fillStyle = "red";
-      ctx.beginPath();
-      ctx.arc(this.left + this.width/2, this.top + this.height/2, this.height/2, 0, 2*Math.PI, false);
-      ctx.fill();
+  // TODO on get apple: start next level.
+
+  onMobTouch: function(mob, intercept) {
+    if (mob.type == "player") {
+        // Play crazy fanfare!
+        // Start next level!
+        g_level ++;
+        if (g_level >= all_level_data.length) {
+            g_level = 0; // if we're out of levels, loop back to beginning
+        }
+        TheWorld.loadFromString(all_level_data[g_level], loader, function() {
+            
+            g_player.left = TheWorld.startX;
+	    g_player.top = TheWorld.startY;
+            TheWorld.addForegroundObject(g_player);
+
+        });
+        // TODO not sure this is clearing everything as it should be. Some weird bugs
+        // seem to happen on higher levels, possibly due to leftover data
+        // Seems like the player object from the older level is still hanging around?
+    }
+    return false;
   }
 };
 Apple.prototype.__proto__ = new Mob(); // Multi-inherit from mob and powerup??
@@ -46,6 +64,10 @@ PowerObject.prototype = {
     draw: function(ctx) {
 	ctx.strokeStyle = "black";
         ctx.font="14pt arial";
+        if (g_selectedPower && this.name == g_selectedPower.name) {
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(this.left, this.top, 64, 64);
+        }
 	ctx.strokeRect(this.left, this.top, 64, 64);
         ctx.strokeText(this.name, this.left + 5, this.top +32);
     },
@@ -237,7 +259,6 @@ var powers = {
                  if (!player.sliceRect) {
                      player.sliceRect = new ForceField();
                      player.sliceRect.draw = function(ctx) {
-                         console.log("Drawing slice");
                          ctx.fillStyle = "white";
                          ctx.fillRect(this.left, this.top, this.width, this.height);
                      };
@@ -348,13 +369,13 @@ function startGame(loader) {
   var context = $("#game-canvas")[0].getContext("2d");
 
   // Create player, put it in the world:
-  var player = new Player(loader,
+  g_player = new Player(loader,
 			  "elefun.png",
                           TheWorld.startX,
 			  TheWorld.startY,
 			  64, 50);
 
-  player.selectSprite = function() {
+  g_player.selectSprite = function() {
       // top row = 4 frames moving right
       // second row = facing right: stand, leap, suck
       if (this.lastMoved == GOING_RIGHT) {
@@ -381,7 +402,7 @@ function startGame(loader) {
      return {x: 0, y: 0};
   };
 
-  TheWorld.addForegroundObject(player);
+  TheWorld.addForegroundObject(g_player);
   //TheWorld.draw(context);
 
     /*var field = new ForceField();
@@ -392,16 +413,15 @@ function startGame(loader) {
   field.setVector(1, 0);
   TheWorld.addForceField(field);*/
 
-   /* var apple = new Mob();
-    apple.boxInit(900, -48, 48, 48);
-    apple.mobInit(loader, "apple.png", false);
-    TheWorld.addForegroundObject(apple);*/
 
+    // Or do this like only in level 0:
     var powerObjects = TheWorld.getObjectsOfType("power_object");
-    powerObjects[0].name = "JUMP";
-    powerObjects[1].name = "SUCK";
-    powerObjects[2].name = "FREEZE";
-    powerObjects[3].name = "SLICE";
+    if (powerObjects.length > 0) {
+        powerObjects[0].name = "JUMP";
+        powerObjects[1].name = "SUCK";
+        powerObjects[2].name = "FREEZE";
+        powerObjects[3].name = "SLICE";
+    }
 
   var startTime = Date.now();
 
@@ -462,31 +482,31 @@ function startGame(loader) {
 
     if (g_selectedPower ) {
       if (spacebarDown) {
-        g_selectedPower.onActivate(player, elapsed);
+        g_selectedPower.onActivate(g_player, elapsed);
       } else {
-        g_selectedPower.onDeactivate(player, elapsed);
+        g_selectedPower.onDeactivate(g_player, elapsed);
       }
     }
 
     if (leftArrowDown && !rightArrowDown) {
-      player.goLeft(elapsed);
+      g_player.goLeft(elapsed);
     } else if (rightArrowDown && !leftArrowDown) {
-      player.goRight(elapsed);
+      g_player.goRight(elapsed);
     } else if (upArrowDown && !downArrowDown) {
-      player.ascend(elapsed); // Only ascend if touching ladder or 
+      g_player.ascend(elapsed); // Only ascend if touching ladder or 
     } else if (downArrowDown && !upArrowDown) {
-      player.descend(elapsed);
+      g_player.descend(elapsed);
     }else {
-      player.idle(elapsed);
+      g_player.idle(elapsed);
     }
 
     TheWorld.updateEveryone(elapsed);
-    TheWorld.scrollIfNeeded(player);
+    TheWorld.scrollIfNeeded(g_player);
     TheWorld.cleanUpDead();
 
     StatusBar.updateTimer(currentTime - startTime);
     TheWorld.draw(context);
-    StatusBar.draw(context, player);
+    StatusBar.draw(context, g_player);
 
     // Show instructions on screen until player starts moving:
     if (!gameStarted) {
@@ -494,12 +514,12 @@ function startGame(loader) {
     }
 
     // check for #LOSING:
-    if (player.dead) {
+    if (g_player.dead) {
 	bannerText(getLocalString("_lose_monster") + " " +
 		   getLocalString("_reload_play_again"));
       $("#bgm")[0].pause();
       playSfx("death-sfx");
-    } else if (player.top > bottomLimit) {
+    } else if (g_player.top > bottomLimit) {
 	bannerText(getLocalString("_lose_falling") + " " +
 		   getLocalString("_reload_play_again"));
       $("#bgm")[0].pause();
@@ -516,8 +536,7 @@ function startGame(loader) {
 
 
 $(document).ready(function() {
-    var loader = new AssetLoader();
     progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
     progressBar.draw(0);
-    TheWorld.loadFromString(level0data, loader, startGame);
+    TheWorld.loadFromString(all_level_data[g_level], loader, startGame);
 });
