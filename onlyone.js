@@ -317,10 +317,10 @@ var powers = {
                        width += 2;
                    player.iceBeam.boxInit(player.left - width,
                                           //player.bottom - 1,
-                                          player.top - 1,
+                                          player.top +16,
                                           width,
                                           //16);
-                                          32);
+                                          40);
                    }
                }
                if (player.lastMoved == GOING_RIGHT && player.iceBeamDirection == GOING_RIGHT) {
@@ -329,16 +329,36 @@ var powers = {
                    width += 2;
                    player.iceBeam.boxInit(player.right,
                                           //player.bottom - 1,
-                                          player.top -1,
+                                          player.top +16,
                                           width,
                                           //16);
-                                          32);
+                                          40);
                    }
                }
              },
 
              onDeactivate: function(player, elapsed) {
                  if (player.iceBeam) {
+                     // get intersecting platform
+                     var platforms = TheWorld.getObjectsOfType("platform");
+                     for (var i = 0; i < platforms.length; i++) {
+                         // turn intersecting platform into ice...
+                         if (player.iceBeam.intersecting(platforms[i])) {
+                             
+                             var iceBlock = new IceBlock();
+                             if (player.iceBeamDirection == GOING_LEFT) {
+                                 iceBlock.boxInit(player.left - player.iceBeam.width,
+                                                  platforms[i].top - 1,
+                                                  player.iceBeam.width, 16);
+                             } else {
+                                 iceBlock.boxInit(player.right,
+                                                  platforms[i].top - 1,
+                                                  player.iceBeam.width, 16);
+                             }
+                             TheWorld.addForegroundObject(iceBlock);
+                         }
+                     }
+
                      TheWorld.removeForegroundObject(player.iceBeam);
                  }
                  // TODO remove old ice beam, or leave it?
