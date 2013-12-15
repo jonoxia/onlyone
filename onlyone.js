@@ -15,6 +15,9 @@ const SPACEBAR = 32;
 
 g_selectedPower = null;
 
+PhysicsConstants.groundFriction = 6;
+PhysicsConstants.groundAcceleration = 12;
+
 // TODO add level bounds, stop scrolling when you get there
 
 function Apple() {
@@ -191,10 +194,108 @@ var powers = {
                  player.iceBeam = null;
                  player.iceBeamDirection = null;
              }
+            },
+
+    slice: {"name": "SLICE",
+            "sprite": 2,
+            onActivate: function(player, elapsed) {
+                // TODO actually kind of want this to play out its whole animation even if
+                // you release the key early -- tap to slice rather than hold to slice.
+                var sliceWidth = 0;
+                 if (!player.sliceRect) {
+                     player.sliceRect = new ForceField();
+                     player.sliceRect.draw = function(ctx) {
+                         console.log("Drawing slice");
+                         ctx.fillStyle = "white";
+                         ctx.fillRect(this.left, this.top, this.width, this.height);
+                     };
+                     player.sliceTiming = 0;
+                     player.sliceRect.boxInit(0, 0, 0, 0);
+                     TheWorld.addForceField(player.sliceRect);
+                     //TheWorld.addForegroundObject(player.iceBeam);
+                     player.sliceDirection = player.lastMoved;
+                 } else {
+                     player.sliceTiming += elapsed;
+                     if (player.sliceTiming < 250) {
+                         sliceWidth = 64 * player.sliceTiming / 250;
+                     } else {
+                         sliceWidth = 64 * ( 1 - (player.sliceTiming - 250) / 250 );
+                         if (sliceWidth < 0) {
+                             sliceWidth = 0;
+                         }
+                     }
+                 }
+
+               if (player.lastMoved == GOING_LEFT && player.sliceDirection == GOING_LEFT) {
+                   player.sliceRect.boxInit(player.left - sliceWidth,
+                                          player.bottom - 32,
+                                          sliceWidth,
+                                          16);
+               }
+               if (player.lastMoved == GOING_RIGHT && player.sliceDirection == GOING_RIGHT) {
+                   player.sliceRect.boxInit(player.right,
+                                          player.bottom - 32,
+                                          sliceWidth,
+                                          16);
+               }
+                // If slice rect intersects with a platform that is narrower
+                // than X, cut the platform down to that height and replace the top
+                // section with a pushableBlock
+                var cut = null;
+                if (!player.sliceHasSliced) {
+                    for (var i = 0; i < TheWorld.foregroundObjects.length; i++) {
+                        var platform = TheWorld.foregroundObjects[i];
+                        if (player.sliceRect.intersecting(platform)) {
+                            if (platform.type == "sliceable_block") {
+                                var cut = {platform: platform,
+                                           height: player.sliceRect.bottom};
+                            }
+                        }
+                    }
+                }
+
+                if (cut) {
+                    player.sliceHasSliced = true;
+                    var left = cut.platform.left;
+                    var width = cut.platform.width;
+                    var top = cut.platform.top;
+                    var height = cut.platform.height;
+                    // remove old block:
+                    TheWorld.removeForegroundObject(cut.platform);
+
+                    // Put in new block above the cut:
+                    var newBlock1 = new SliceableBlock();
+                    // TODO make this one mobile so it will do some falling
+
+                    // fallingBlock? pushableBlock?
+                    newBlock1.boxInit(left,
+                                      top,
+                                      width,
+                                      (cut.height - top) - 16
+                                    );
+                    TheWorld.addForegroundObject(newBlock1);
+
+                    // Put in new block below the cut:
+                    var newBlock2 = new SliceableBlock();
+                    newBlock2.boxInit(left,
+                                      cut.height,
+                                      width,
+                                      (top + height - cut.height)
+                                    );
+                    TheWorld.addForegroundObject(newBlock2);
+                }
+            },
+
+            onDeactivate: function(player, elapsed) {
+                TheWorld.removeForceField(player.sliceRect);
+                 player.sliceRect = null;
+                 player.sliceDirection = null;
+                player.sliceHasSliced = false;
             }
+           }
 };
 
-g_selectedPower = powers["freeze"];
+g_selectedPower = powers["slice"];
 
 var progressBar;
 
@@ -234,16 +335,20 @@ function startGame(loader) {
               return {x: g_selectedPower.sprite, y: 1};
           } else if (!this.onGround()) {
               return {x: 1, y: 1};
-          } else {
+          } else if (leftArrowDown || rightArrowDown) {
               return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 0};
+          } else {
+              return {x: 0, y: 1};
           }
       } else {
           if (spacebarDown) {
               return {x: g_selectedPower.sprite, y: 3};
           } else if (!this.onGround()) {
               return {x: 1, y: 3};
-          } else {
+          } else if (leftArrowDown || rightArrowDown) {
               return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 2};
+          } else {
+              return {x: 0, y: 3};
           }
       }
      return {x: 0, y: 0};
