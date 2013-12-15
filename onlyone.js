@@ -153,10 +153,46 @@ var powers = {
                }
                player.suckForce = null;
            }
-          }
+          },
+
+    freeze: {"name": "FREEZE",
+             "sprite": 2,
+             onActivate: function(player, elapsed) {
+                 if (!player.iceBeam) {
+                     player.iceBeam = new IceBlock();
+                     player.iceBeam.boxInit(0, 0, 0, 0);
+                     TheWorld.addForegroundObject(player.iceBeam);
+                 }
+               if (player.lastMoved == GOING_LEFT) {
+                   var width = player.iceBeam.width;
+                   if (width < 128) {
+                       width += 1;
+                   player.iceBeam.boxInit(player.left - width,
+                                          player.bottom,
+                                          width,
+                                          16);
+                   }
+               }
+               if (player.lastMoved == GOING_RIGHT) {
+                   var width = player.iceBeam.width;
+                   if (width < 128) {
+                   width += 1;
+                   player.iceBeam.boxInit(player.right,
+                                          player.bottom,
+                                          width,
+                                          16);
+                   }
+               }
+             },
+
+             onDeactivate: function(player, elapsed) {
+                 // TODO remove old player ice beam?
+                 player.iceBeam = null;
+             }
+            }
 };
 
-g_selectedPower = powers["suck"];
+g_selectedPower = powers["freeze"];
 
 var progressBar;
 
