@@ -4,19 +4,26 @@ const UP_ARROW = 38;
 const DOWN_ARROW = 40;
 const SPACEBAR = 32;
 
+// GLOBAL VARIABLE UP THE WAZOO
+  var leftArrowDown = false;
+  var rightArrowDown = false;
+  var upArrowDown = false;
+  var downArrowDown = false;
+  var spacebarDown = false;
+  var gameStarted = false;
+
+
+g_selectedPower = null;
 
 // TODO add level bounds, stop scrolling when you get there
 
-
-// TODO make it possible to act upon Apple using force (suck or blow)
-// I think that means making Apple inherit from both Mob and Powerup... int wrist sting.
 function Apple() {
 }
 Apple.prototype = {
   type: "apple",
   classification: "powerup",
-  width: 32,
-  height: 32,
+  width: 48,
+  height: 48,
   draw: function(ctx) {
       ctx.fillStyle = "red";
       ctx.beginPath();
@@ -24,7 +31,7 @@ Apple.prototype = {
       ctx.fill();
   }
 };
-Apple.prototype.__proto__ = new Mob();
+Apple.prototype.__proto__ = new Mob(); // Multi-inherit from mob and powerup??
 ConstructorRegistry.register(Apple);
 
 
@@ -95,10 +102,61 @@ var StatusBar = {
     //var textWidth = ctx.measureText(text);
     ctx.fillText(getLocalString("_time") + ": " + this.timeString, 80, 30);
 
-    ctx.fillText(getLocalString("_useless_trinkets") + ": " + player.numTrinkets, 240, 30);
+    //ctx.fillText(getLocalString("_useless_trinkets") + ": " + player.numTrinkets, 240, 30);
+      ctx.fillText("SPACEBAR: " + g_selectedPower.name, 240, 30);
   }
 };
 
+
+var powers = {
+    jump: {"name": "JUMP",
+           "sprite": 1,
+           onActivate: function(player, elapsed) {
+               player.jump(elapsed);
+           },
+
+           onDeactivate: function(player, elapsed) {
+               player.stopJumping(elapsed);
+           }
+          },
+    
+    suck: {"name": "SUCK",
+           "sprite": 2,
+           onActivate: function(player, elapsed) {
+               // suck:
+               if (!player.suckForce) {
+                   player.suckForce = new ForceField();
+                   player.suckForce.boxInit(0, 0, 0, 0);
+                   TheWorld.addForceField(player.suckForce);
+               }
+               
+               if (player.lastMoved == GOING_LEFT) {
+                   // suck force is to my left and sucks right:
+                   player.suckForce.boxInit(player.left - 257,
+                                            player.top - 32,
+                                            256,
+                                            128);
+                   player.suckForce.setVector(2, 0);
+               } else { // going right, or haven't moved yet -
+                   // the suck force is to my right and sucks left
+                   player.suckForce.boxInit(player.right + 1,
+                                            player.top - 32,
+                                            256,
+                                            128);
+                   player.suckForce.setVector(-2, 0);
+               }
+           },
+
+           onDeactivate: function(player, elapsed) {
+               if (player.suckForce) {
+                   TheWorld.removeForceField(player.suckForce);
+               }
+               player.suckForce = null;
+           }
+          }
+};
+
+g_selectedPower = powers["suck"];
 
 var progressBar;
 
@@ -130,18 +188,21 @@ function startGame(loader) {
 			  TheWorld.startY,
 			  64, 50);
 
-
   player.selectSprite = function() {
       // top row = 4 frames moving right
       // second row = facing right: stand, leap, suck
       if (this.lastMoved == GOING_RIGHT) {
-          if (!this.onGround()) {
+          if (spacebarDown) {
+              return {x: g_selectedPower.sprite, y: 1};
+          } else if (!this.onGround()) {
               return {x: 1, y: 1};
           } else {
               return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 0};
           }
       } else {
-          if (!this.onGround()) {
+          if (spacebarDown) {
+              return {x: g_selectedPower.sprite, y: 3};
+          } else if (!this.onGround()) {
               return {x: 1, y: 3};
           } else {
               return {x: Math.floor(this._pixelsTraveled / 100) % 4, y: 2};
@@ -149,43 +210,6 @@ function startGame(loader) {
       }
      return {x: 0, y: 0};
   };
-
-
-    player.usePower = function(elapsed) {
-        player.jump(elapsed);
-
-        // suck:
-        if (!player.suckForce) {
-            player.suckForce = new ForceField();
-            player.suckForce.boxInit(0, 0, 0, 0);
-            TheWorld.addForceField(player.suckForce);
-        }
-
-        if (player.lastMoved == GOING_LEFT) {
-            // suck force is to my left and sucks right:
-            player.suckForce.boxInit(player.left - 257,
-                                     player.top - 32,
-                                     256,
-                                     128);
-            player.suckForce.setVector(2, 0);
-        } else { // going right, or haven't moved yet -
-            // the suck force is to my right and sucks left
-            player.suckForce.boxInit(player.right + 1,
-                                     player.top - 32,
-                                     256,
-                                     128);
-            player.suckForce.setVector(-2, 0);
-        }
-    };
-
-    player.stopUsingPower = function(elapsed) {
-        player.stopJumping(elapsed);
-        if (player.suckForce) {
-            TheWorld.removeForceField(player.suckForce);
-        }
-        player.suckForce = null;
-    };
-
 
   TheWorld.addForegroundObject(player);
   //TheWorld.draw(context);
@@ -199,16 +223,9 @@ function startGame(loader) {
   TheWorld.addForceField(field);
 
     var apple = new Mob();
-    apple.boxInit(900, -32, 32, 32);
-    apple.mobInit(loader, "platform/octogoblin.png", false);
+    apple.boxInit(900, -48, 48, 48);
+    apple.mobInit(loader, "apple.png", false);
     TheWorld.addForegroundObject(apple);
-
-  var leftArrowDown = false;
-  var rightArrowDown = false;
-  var upArrowDown = false;
-  var downArrowDown = false;
-  var spacebarDown = false;
-  var gameStarted = false;
 
   var startTime = Date.now();
 
@@ -256,6 +273,7 @@ function startGame(loader) {
       }
   });
 
+
   var bottomLimit = TheWorld.getBottomLimit();
   var currentTime = Date.now();
   var elapsed = 0;
@@ -267,9 +285,9 @@ function startGame(loader) {
     currentTime = newTime;
 
     if (spacebarDown) {
-      player.usePower(elapsed);
+        g_selectedPower.onActivate(player, elapsed);
     } else {
-      player.stopUsingPower(elapsed);
+        g_selectedPower.onDeactivate(player, elapsed);
     }
 
     if (leftArrowDown && !rightArrowDown) {
