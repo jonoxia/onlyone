@@ -94,6 +94,84 @@ PowerObject.prototype = {
 PowerObject.prototype.__proto__ = new Box();
 ConstructorRegistry.register(PowerObject);
 
+function SliceRect() {
+}
+SliceRect.prototype = {
+    draw: function(ctx) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(this.left, this.top, this.width, this.height);
+    },
+
+    onMobTouch: function(mob, intercept) {
+        if (mob.type != "player") {
+            mob.damage(1);
+        }
+    }
+}
+SliceRect.prototype.__proto__ = new Box();
+
+
+function FreezyRect() {
+}
+FreezyRect.prototype = {
+    draw: function(ctx) {
+        ctx.strokeStyle = "lightblue";
+        ctx.strokeRect(this.left, this.top, this.width, this.height);
+    },
+    onMobTouch: function(mob, intercept) {
+        if (mob.type != "player") {
+            mob.die();
+            var frozenMob = new FrozenMob();
+            frozenMob.img = mob.img;
+            frozenMob.boxInit(mob.left, mob.top, mob.width, mob.height);
+            frozenMob.vx = 0;
+            frozenMob.vy = 0;
+            TheWorld.addForegroundObject(frozenMob);
+        }
+    }
+}
+FreezyRect.prototype.__proto__ = new Box();
+
+
+function FrozenMob() {
+}
+FrozenMob.prototype = {
+    draw: function(ctx) {
+        ctx.fillStyle = "lightblue";
+        ctx.fillRect(this.left, this.top, this.width, this.height);
+        if (this.img) {
+            ctx.drawImage(this.img, this.left, this.top);
+        }
+    },
+
+    onMobTouch: function(mob, intercept) {
+        // can be pushed around
+        mob.stopAt(intercept);
+        if (intercept.side == "left") {
+            this.vx += 5;
+        }
+        if (intercept.side == "right") {
+            this.vx -= 5;
+        }
+        return true;
+    },
+
+
+    substantial: function(edge) {
+        return true;
+    },
+
+  getFrictionCoefficient: function() {
+      return 0.2; // same as iceBlock
+  },
+
+  getAccelerationCoefficient: function() {
+      return 1.0; // same as iceBlock
+  }
+
+} // TODO Really wants to inerhit from Mob and Platform
+FrozenMob.prototype.__proto__ = new Mob();
+
 
 
 function adjustToScreen() {
@@ -228,7 +306,7 @@ var powers = {
              "sprite": 2,
              onActivate: function(player, elapsed) {
                  if (!player.iceBeam) {
-                     player.iceBeam = new IceBlock();
+                     player.iceBeam = new FreezyRect(); //new IceBlock();
                      player.iceBeam.boxInit(0, 0, 0, 0);
                      TheWorld.addForegroundObject(player.iceBeam);
                      player.iceBeamDirection = player.lastMoved;
@@ -238,9 +316,11 @@ var powers = {
                    if (width < 128) {
                        width += 2;
                    player.iceBeam.boxInit(player.left - width,
-                                          player.bottom - 1,
+                                          //player.bottom - 1,
+                                          player.top - 1,
                                           width,
-                                          16);
+                                          //16);
+                                          32);
                    }
                }
                if (player.lastMoved == GOING_RIGHT && player.iceBeamDirection == GOING_RIGHT) {
@@ -248,14 +328,19 @@ var powers = {
                    if (width < 128) {
                    width += 2;
                    player.iceBeam.boxInit(player.right,
-                                          player.bottom - 1,
+                                          //player.bottom - 1,
+                                          player.top -1,
                                           width,
-                                          16);
+                                          //16);
+                                          32);
                    }
                }
              },
 
              onDeactivate: function(player, elapsed) {
+                 if (player.iceBeam) {
+                     TheWorld.removeForegroundObject(player.iceBeam);
+                 }
                  // TODO remove old ice beam, or leave it?
                  player.iceBeam = null;
                  player.iceBeamDirection = null;
@@ -269,14 +354,10 @@ var powers = {
                 // you release the key early -- tap to slice rather than hold to slice.
                 var sliceWidth = 0;
                  if (!player.sliceRect) {
-                     player.sliceRect = new ForceField();
-                     player.sliceRect.draw = function(ctx) {
-                         ctx.fillStyle = "white";
-                         ctx.fillRect(this.left, this.top, this.width, this.height);
-                     };
+                     player.sliceRect = new SliceRect();
                      player.sliceTiming = 0;
                      player.sliceRect.boxInit(0, 0, 0, 0);
-                     TheWorld.addForceField(player.sliceRect);
+                     TheWorld.addForegroundObject(player.sliceRect);
                      //TheWorld.addForegroundObject(player.iceBeam);
                      player.sliceDirection = player.lastMoved;
                  } else {
@@ -349,7 +430,7 @@ var powers = {
             },
 
             onDeactivate: function(player, elapsed) {
-                TheWorld.removeForceField(player.sliceRect);
+                TheWorld.removeForegroundObject(player.sliceRect);
                  player.sliceRect = null;
                  player.sliceDirection = null;
                 player.sliceHasSliced = false;
@@ -559,5 +640,6 @@ function startGame(loader) {
 $(document).ready(function() {
     progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
     progressBar.draw(0);
+    loader.add("shrimp.gif");
     TheWorld.loadFromString(all_level_data[g_level], loader, startGame);
 });
