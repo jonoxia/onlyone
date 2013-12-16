@@ -68,6 +68,25 @@ Apple.prototype.__proto__ = new Mob(); // Multi-inherit from mob and powerup??
 ConstructorRegistry.register(Apple);
 
 
+function Mouse() {
+    this.mobInit(loader, "mouse.png", true);
+}
+Mouse.prototype = {
+    type: "mouse",
+    width: 60,
+    height: 25,
+    selectSprite: function() {
+        if (this.movementDirection == GOING_LEFT) {
+            return {x: 0, y: 0};
+        } else {
+            return {x: 0, y: 1};
+        }
+    }
+};
+Mouse.prototype.__proto__ = new Enemy(); // Multi-inherit from mob and powerup??
+ConstructorRegistry.register(Mouse);
+
+
 function PowerObject() {
 }
 PowerObject.prototype = {
@@ -122,7 +141,7 @@ FreezyRect.prototype = {
         if (mob.type != "player") {
             mob.die();
             var frozenMob = new FrozenMob();
-            frozenMob.img = mob.img;
+            frozenMob.setMob(mob);
             frozenMob.boxInit(mob.left, mob.top, mob.width, mob.height);
             frozenMob.vx = 0;
             frozenMob.vy = 0;
@@ -136,11 +155,19 @@ FreezyRect.prototype.__proto__ = new Box();
 function FrozenMob() {
 }
 FrozenMob.prototype = {
+    setMob: function(mob) {
+        this.mob = mob;
+    },
+
     draw: function(ctx) {
         ctx.fillStyle = "lightblue";
         ctx.fillRect(this.left, this.top, this.width, this.height);
-        if (this.img) {
-            ctx.drawImage(this.img, this.left, this.top);
+        if (this.mob && this.mob.img) {
+            var offsets = this.mob.selectSprite();
+            var spriteOffsetX = this.width * offsets.x;
+            var spriteOffsetY = this.height * offsets.y;
+            ctx.drawImage(this.mob.img, spriteOffsetX, spriteOffsetY, this.width, this.height,
+		          this.left, this.top, this.width, this.height);
         }
     },
 
@@ -660,6 +687,6 @@ function startGame(loader) {
 $(document).ready(function() {
     progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
     progressBar.draw(0);
-    loader.add("shrimp.gif");
+    loader.add("mouse.png");
     TheWorld.loadFromString(all_level_data[g_level], loader, startGame);
 });
