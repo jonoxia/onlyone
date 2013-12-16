@@ -76,7 +76,7 @@ Mouse.prototype = {
     width: 60,
     height: 25,
     selectSprite: function() {
-        if (this.movementDirection == GOING_LEFT) {
+        if (this.lastMoved == GOING_LEFT) {
             return {x: 0, y: 0};
         } else {
             return {x: 0, y: 1};
@@ -310,14 +310,14 @@ var powers = {
                                             player.top - 32,
                                             256,
                                             128);
-                   player.suckForce.setVector(2, 0);
+                   player.suckForce.setVector(3, 0);
                } else { // going right, or haven't moved yet -
                    // the suck force is to my right and sucks left
                    player.suckForce.boxInit(player.right + 1,
                                             player.top - 32,
                                             256,
                                             128);
-                   player.suckForce.setVector(-2, 0);
+                   player.suckForce.setVector(-3, 0);
                }
            },
 
