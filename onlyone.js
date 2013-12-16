@@ -10,12 +10,11 @@ const SPACEBAR = 32;
   var upArrowDown = false;
   var downArrowDown = false;
   var spacebarDown = false;
-  var gameStarted = false;
 
 var loader = new AssetLoader();
-g_player = null;
-g_selectedPower = null;
-g_level = 0;
+var g_player = null;
+var g_selectedPower = null;
+var g_level = 0;
 
 PhysicsConstants.groundFriction = 6;
 PhysicsConstants.groundAcceleration = 12;
@@ -114,11 +113,28 @@ PowerObject.prototype.__proto__ = new Box();
 ConstructorRegistry.register(PowerObject);
 
 function SliceRect() {
+    this.img = loader.add("sprite_cut.png");
+    this.time = 0;
 }
 SliceRect.prototype = {
+    resetTime: function() {
+        this.time = 0;
+    },
+    addTime: function(time) {
+        this.time += time;
+    },
     draw: function(ctx) {
-        ctx.fillStyle = "white";
-        ctx.fillRect(this.left, this.top, this.width, this.height);
+        // each 64 by 16
+        if (this.time < 480 && this.width > 0) {
+            var offsetX = 0;
+            var offsetY = Math.floor(this.time / 160);
+            var spriteOffsetX = this.width * offsetX;
+            var spriteOffsetY = this.height * offsetY;
+            console.log("Drawing slice rect: " + this.left + ", " + this.top + ", " + 
+                        this.width + ", " + this.height);
+            ctx.drawImage(this.img, spriteOffsetX, spriteOffsetY, this.width, this.height,
+		          this.left, this.top, this.width, this.height);
+        }
     },
 
     onMobTouch: function(mob, intercept) {
@@ -272,7 +288,10 @@ var StatusBar = {
     ctx.font="18pt arial";
     ctx.fillStyle = "black";
     //var textWidth = ctx.measureText(text);
-    ctx.fillText(getLocalString("_time") + ": " + this.timeString, 80, 30);
+    //ctx.fillText(getLocalString("_time") + ": " + this.timeString, 80, 30);
+      if (g_level > 0) {
+          ctx.fillText("LEVEL " + g_level, 80, 30);
+      }
 
     //ctx.fillText(getLocalString("_useless_trinkets") + ": " + player.numTrinkets, 240, 30);
       if (g_selectedPower) {
@@ -402,20 +421,17 @@ var powers = {
                 var sliceWidth = 0;
                  if (!player.sliceRect) {
                      player.sliceRect = new SliceRect();
-                     player.sliceTiming = 0;
+                     player.sliceRect.resetTime();
                      player.sliceRect.boxInit(0, 0, 0, 0);
                      TheWorld.addForegroundObject(player.sliceRect);
                      //TheWorld.addForegroundObject(player.iceBeam);
                      player.sliceDirection = player.lastMoved;
                  } else {
-                     player.sliceTiming += elapsed;
-                     if (player.sliceTiming < 250) {
-                         sliceWidth = 64 * player.sliceTiming / 250;
+                     player.sliceRect.addTime(elapsed);
+                     if (player.sliceRect.time < 480) {
+                         sliceWidth = 64;
                      } else {
-                         sliceWidth = 64 * ( 1 - (player.sliceTiming - 250) / 250 );
-                         if (sliceWidth < 0) {
-                             sliceWidth = 0;
-                         }
+                         sliceWidth = 0;
                      }
                  }
 
@@ -485,6 +501,9 @@ var powers = {
            }
 };
 
+// debug only:
+//g_selectedPower = powers["SLICE"];
+
 var progressBar;
 
 
@@ -539,6 +558,8 @@ function startGame(loader) {
       if (this.lastMoved == GOING_RIGHT) {
           if (spacebarDown && g_selectedPower) {
               return {x: g_selectedPower.sprite, y: 1};
+          } else if (this.motionMode == "climb") {
+              return {x: Math.floor(this._pixelsTraveled / 100) % 6, y:4};
           } else if (!this.onGround()) {
               return {x: 1, y: 1};
           } else if (leftArrowDown || rightArrowDown) {
@@ -549,6 +570,8 @@ function startGame(loader) {
       } else {
           if (spacebarDown && g_selectedPower) {
               return {x: g_selectedPower.sprite, y: 3};
+          } else if (this.motionMode == "climb") {
+              return {x: Math.floor(this._pixelsTraveled / 100) % 6, y:5};
           } else if (!this.onGround()) {
               return {x: 1, y: 3};
           } else if (leftArrowDown || rightArrowDown) {
@@ -575,7 +598,6 @@ function startGame(loader) {
   var startTime = Date.now();
 
   $(document).bind("keydown", function(evt) {
-    gameStarted = true;
 
       switch (evt.which) {
       case LEFT_ARROW:
@@ -657,11 +679,6 @@ function startGame(loader) {
     TheWorld.draw(context);
     StatusBar.draw(context, g_player);
 
-    // Show instructions on screen until player starts moving:
-    /*if (!gameStarted) {
-      bannerText(getLocalString("_game_instructions"));
-    }*/
-
     // check for #LOSING:
     if (g_player.dead) {
 	bannerText(getLocalString("_lose_monster") + " " +
@@ -683,10 +700,10 @@ function startGame(loader) {
     });
 }
 
-
 $(document).ready(function() {
     progressBar = new ProgressBar($("#game-canvas")[0].getContext("2d"));
     progressBar.draw(0);
     loader.add("mouse.png");
+    loader.add("sprite_cut.png");
     TheWorld.loadFromString(all_level_data[g_level], loader, startGame);
 });
